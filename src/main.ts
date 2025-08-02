@@ -13,6 +13,7 @@ const textStyle = {
 };
 const lineHeight = 1.2;
 const backgroundColor = "#192a56";
+const usedCardTint = 0x888888;
 
 new Phaser.Game({
     type: Phaser.AUTO,
@@ -37,7 +38,7 @@ new Phaser.Game({
             ];
             for (let i = 0; i < state.dayCards.length; i++) {
                 const card = state.dayCards[i];
-                this.add.image(
+                const cardImage = this.add.image(
                     gameWidth / 2 + (i - (state.dayCards.length - 1) / 2) * (cardWidth + gapX),
                     gameHeight / 2,
                     getCardKey(card),
@@ -46,6 +47,9 @@ new Phaser.Game({
                     switch (event.type) {
                         case EventType.UseCard:
                             counters.forEach(counter => counter.update());
+                            cardImage.setTint(usedCardTint);
+                            break;
+                        case EventType.CardAlreadyUsed:
                             break;
                         case EventType.NotEnoughResources:
                             alert(JSON.stringify(event, null, 4));

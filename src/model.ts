@@ -31,6 +31,7 @@ type State = {
     actionPoints: number;
     drawPile: Card[];
     dayCards: Card[];
+    used: boolean[];
 };
 
 export function newGameState(): State {
@@ -48,16 +49,19 @@ export function newGameState(): State {
         actionPoints: 5,
         drawPile: Phaser.Utils.Array.Shuffle(generateDeck()),
         dayCards,
+        used: [false, false, false, false],
     };
 }
 
 export enum EventType {
     UseCard,
+    CardAlreadyUsed,
     NotEnoughResources,
 }
 
 export type CarpeDiemEvent =
     | { type: EventType.UseCard }
+    | { type: EventType.CardAlreadyUsed }
     | {
         type: EventType.NotEnoughResources;
         lacksActionPoints: boolean;
@@ -66,6 +70,10 @@ export type CarpeDiemEvent =
       };
 
 export function useCard(card: Card, index: number, state: State): CarpeDiemEvent {
+    if (state.used[index]) {
+        return { type: EventType.CardAlreadyUsed };
+    }
+
     const isSpecial = card.value === 1 || card.value > 10;
 
     const deltaActionPoints = -(index + 1);
@@ -99,6 +107,8 @@ export function useCard(card: Card, index: number, state: State): CarpeDiemEvent
     state.energy += deltaEnergy;
     state.money += deltaMoney;
     state.victoryPoints += deltaVictoryPoints;
+
+    state.used[index] = true;
 
     return { type: EventType.UseCard };
 }
