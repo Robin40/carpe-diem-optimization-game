@@ -1,19 +1,26 @@
 import Phaser from "phaser";
 
-const cardWidth = 150;
-const cardHeight = 210;
-const gapX = 10;
+const gameWidth = window.innerWidth;
+const gameHeight = window.innerHeight;
+const cardHeight = gameHeight / 3;
+const cardWidth = cardHeight / Math.sqrt(2);
+const gapX = gameWidth / 80;
 new Phaser.Game({
     type: Phaser.AUTO,
-    width: 800,
-    height: 600,
+    width: gameWidth,
+    height: gameHeight,
     scene: {
         preload() {
             this.load.svg("1B", "cards/1B.svg", { width: cardWidth, height: cardHeight });
         },
         create() {
-            for (let i = 0; i < 4; i++) {
-                this.add.image(400 + (i - 1.5) * (cardWidth + gapX), 300, "1B");
+            const n = 4;
+            for (let i = 0; i < n; i++) {
+                this.add.image(
+                    gameWidth / 2 + (i - (n - 1) / 2) * (cardWidth + gapX),
+                    gameHeight / 2,
+                    "1B",
+                );
             }
         },
         update() {},
