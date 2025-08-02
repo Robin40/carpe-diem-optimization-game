@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import {generateDeck, getCardKey} from "./model.ts";
+import {type Card, EventType, generateDeck, newGameState, useCard} from "./model.ts";
 
 const gameWidth = window.innerWidth;
 const gameHeight = window.innerHeight;
@@ -14,7 +14,6 @@ const textStyle = {
 const lineHeight = 1.2;
 const backgroundColor = "#192a56";
 
-let deck = generateDeck();
 new Phaser.Game({
     type: Phaser.AUTO,
     width: gameWidth,
@@ -22,38 +21,35 @@ new Phaser.Game({
     backgroundColor,
     scene: {
         preload() {
-            for (const card of deck) {
+            for (const card of generateDeck()) {
                 const key = getCardKey(card);
                 this.load.svg(key, `cards/${key}.svg`, { width: cardWidth, height: cardHeight });
             }
         },
         create() {
-            let day = 1;
-            let victoryPoints = 0;
-            let energy = 3;
-            let money = 8;
-            let actionPoints = 5;
-            addCounter(this, gapX, 0, "Day", () => day);
-            addCounter(this, gameWidth / 2, 0, "Victory Points", () => victoryPoints);
-            addCounter(this, gapX, fontSize * lineHeight, "Energy", () => energy);
-            addCounter(this, gameWidth / 2, fontSize * lineHeight, "Money", () => money);
-            const actionPointsCounter = addCounter(this, gapX, fontSize * lineHeight * 2, "Action Points", () => actionPoints);
-
-            Phaser.Utils.Array.Shuffle(deck);
-            const dayCards = deck.slice(0, 4);
-            for (let i = 0; i < dayCards.length; i++) {
-                const card = dayCards[i];
-                let requiredActionPoints = i + 1;
+            let state = newGameState();
+            const counters = [
+                addCounter(this, gapX, 0, "Day", () => state.day),
+                addCounter(this, gameWidth / 2, 0, "Victory Points", () => state.victoryPoints),
+                addCounter(this, gapX, fontSize * lineHeight, "Energy", () => state.energy),
+                addCounter(this, gameWidth / 2, fontSize * lineHeight, "Money", () => state.money),
+                addCounter(this, gapX, fontSize * lineHeight * 2, "Action Points", () => state.actionPoints),
+            ];
+            for (let i = 0; i < state.dayCards.length; i++) {
+                const card = state.dayCards[i];
                 this.add.image(
-                    gameWidth / 2 + (i - (dayCards.length - 1) / 2) * (cardWidth + gapX),
+                    gameWidth / 2 + (i - (state.dayCards.length - 1) / 2) * (cardWidth + gapX),
                     gameHeight / 2,
                     getCardKey(card),
                 ).setInteractive().on(Phaser.Input.Events.POINTER_DOWN, ()=> {
-                    if (actionPoints >= requiredActionPoints) {
-                        actionPoints -= requiredActionPoints;
-                        actionPointsCounter.update();
-                    } else {
-                        alert("Not enough Action Points");
+                    const event = useCard(card, i, state);
+                    switch (event.type) {
+                        case EventType.UseCard:
+                            counters.forEach(counter => counter.update());
+                            break;
+                        case EventType.NotEnoughResources:
+                            alert(JSON.stringify(event, null, 4));
+                            break;
                     }
                 });
             }
@@ -70,4 +66,8 @@ function addCounter(scene: Phaser.Scene, x: number, y: number, label: string, ge
             text.setText(contents());
         },
     };
+}
+
+function getCardKey(card: Card): string {
+    return "0A23456789TJQK"[card.value] + card.suit[0];
 }
