@@ -11,10 +11,6 @@ enum Suit {
     Spades = "Spades",
 }
 
-export function shuffle<T>(arr: T[]): void {
-    arr.sort(() => Math.random() - 0.5);
-}
-
 export function generateDeck(): Card[] {
     let cards: Card[] = [];
     for (let value = 1; value <= 13; value++) {
