@@ -27,6 +27,13 @@ const disabledCardTint = 0x888888;
 const disabledButtonTint = 0x888888;
 const unaffordableTint = 0xCC8888;
 const hoveredCardTint = 0xFFFFDD;
+const hoveredButtonTint = 0xFFFFDD;
+const emoji = {
+    actionPoints: "⏳",
+    energy: "⚡",
+    money: "💰",
+    victoryPoints: "🏆",
+};
 
 new Phaser.Game({
     type: Phaser.AUTO,
@@ -85,12 +92,6 @@ new Phaser.Game({
                 });
                 cardHints.forEach((hint, index) => {
                     const delta = getDelta(index, state);
-                    const emoji = {
-                        actionPoints: "⏳",
-                        energy: "⚡",
-                        money: "💰",
-                        victoryPoints: "🏆",
-                    }
                     hint.setText(
                         (Object.entries(delta) as [keyof Resources, number][])
                             .filter(([resource, value]) => !(resource === "victoryPoints" && value === 0))
@@ -135,14 +136,14 @@ new Phaser.Game({
                 this,
                 gameWidth * 0.25,
                 gameHeight * 0.85,
-                "Recuperate",
+                `${emoji.energy} Recuperate`,
                 () => send({ type: "Recuperate" }),
             );
             const freelanceButton = addButton(
                 this,
                 gameWidth * 0.75,
                 gameHeight * 0.85,
-                "Freelance",
+                `${emoji.money} Freelance`,
                 () => send({ type: "Freelance" })
             );
         },
@@ -167,7 +168,16 @@ function addButton(scene: Phaser.Scene, x: number, y: number, label: string, onC
         padding: buttonPadding,
     };
     const text = scene.add.text(x, y, label, style)
-        .setInteractive().on(Phaser.Input.Events.POINTER_DOWN, onClick)
+        .setInteractive()
+        .on(Phaser.Input.Events.POINTER_DOWN, onClick)
+        .on(Phaser.Input.Events.POINTER_OVER, () => {
+            text.setTint(hoveredButtonTint);
+            scene.input.setDefaultCursor("pointer");
+        })
+        .on(Phaser.Input.Events.POINTER_OUT, () => {
+            text.setTint(0xFFFFFF);
+            scene.input.setDefaultCursor("default");
+        })
         .setOrigin(0.5, 0);
     return {
         setEnabled(enabled: boolean) {
