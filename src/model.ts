@@ -59,7 +59,7 @@ function draw(state: State): void {
     state.used = [false, false, false, false];
 }
 
-export type UseCardResult =
+export type CarpeDiemEvent =
     | { type: "UseCard" }
     | { type: "CardAlreadyUsed" }
     | {
@@ -67,9 +67,15 @@ export type UseCardResult =
         lacksActionPoints: boolean;
         lacksEnergy: boolean;
         lacksMoney: boolean;
-    };
+    }
+    | { type: "Freelance" }
+    | { type: "Recuperate" }
+    | { type: "DayStart" }
+    | { type: "DayEnd" }
+    | { type: "Win"; score: number }
+    | { type: "Lose" };
 
-export function useCard(card: Card, index: number, state: State): UseCardResult {
+export function useCard(card: Card, index: number, state: State): CarpeDiemEvent {
     if (state.used[index]) {
         return { type: "CardAlreadyUsed" };
     }
@@ -113,28 +119,30 @@ export function useCard(card: Card, index: number, state: State): UseCardResult 
     return { type: "UseCard" };
 }
 
-export function doFreelance(state: State): boolean {
-    if (state.actionPoints < 1) return false;
+const notEnoughActionPoints: CarpeDiemEvent = {
+    type: "NotEnoughResources",
+    lacksActionPoints: true,
+    lacksEnergy: false,
+    lacksMoney: false,
+}
+
+export function doFreelance(state: State): CarpeDiemEvent {
+    if (state.actionPoints < 1) return notEnoughActionPoints;
 
     state.actionPoints -= 1;
     state.money += 1;
-    return true;
+    return { type: "Freelance" };
 }
 
-export function doRecuperate(state: State): boolean {
-    if (state.actionPoints < 1) return false;
+export function doRecuperate(state: State): CarpeDiemEvent {
+    if (state.actionPoints < 1) return notEnoughActionPoints;
 
     state.actionPoints -= 1;
     state.energy += 1;
-    return true;
+    return { type: "Recuperate" };
 }
 
-type EndDayResult =
-    | { type: "KeepGoing" }
-    | { type: "Win"; score: number }
-    | { type: "Lose" };
-
-export function endDay(state: State): EndDayResult {
+export function endDay(state: State): CarpeDiemEvent {
     state.money -= 4;
     state.energy -= 1;
     if (state.money < 0 || state.energy < 0) {
@@ -147,10 +155,12 @@ export function endDay(state: State): EndDayResult {
         return { type: "Win", score: state.victoryPoints + state.money };
     }
 
-    return { type: "KeepGoing" };
+    return { type: "DayEnd" };
 }
 
-export function beginNextDay(state: State) {
+export function beginNextDay(state: State): CarpeDiemEvent {
     state.actionPoints = 5;
     draw(state);
+
+    return { type: "DayStart" };
 }
