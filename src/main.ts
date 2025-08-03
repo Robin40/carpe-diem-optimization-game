@@ -25,6 +25,7 @@ const gameBgColor = "#192a56";
 const buttonBgColor = "#1751e6";
 const disabledCardTint = 0x888888;
 const disabledButtonTint = 0x888888;
+const unaffordableTint = 0xCC8888;
 
 new Phaser.Game({
     type: Phaser.AUTO,
@@ -76,7 +77,7 @@ new Phaser.Game({
                     const delta = getDelta(index, state);
                     const lacks = getLacks(delta, state);
                     image.setTexture(getCardKey(state.dayCards[index]));
-                    image.setTint(state.used[index] || lacks ? disabledCardTint : 0xFFFFFF);
+                    image.setTint(state.used[index] ? disabledCardTint : lacks ? unaffordableTint : 0xFFFFFF);
                 });
                 cardHints.forEach((hint, index) => {
                     const delta = getDelta(index, state);
