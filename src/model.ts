@@ -62,12 +62,7 @@ function draw(state: State): void {
 export type CarpeDiemEvent =
     | { type: "UseCard" }
     | { type: "CardAlreadyUsed" }
-    | {
-        type: "NotEnoughResources";
-        lacksActionPoints: boolean;
-        lacksEnergy: boolean;
-        lacksMoney: boolean;
-    }
+    | { type: "NotEnoughResources"; lacks: Lacks; }
     | { type: "Freelance" }
     | { type: "Recuperate" }
     | { type: "DayStart" }
@@ -82,6 +77,50 @@ type Action =
     | { type: "EndDay" }
     | { type: "BeginNextDay" };
 
+type Resources = {
+    actionPoints: number;
+    energy: number;
+    money: number;
+    victoryPoints: number;
+}
+
+export function getDelta(index: number, state: State): Resources {
+    const card = state.dayCards[index];
+    return {
+        actionPoints: -(index + 1),
+        energy: ({
+            [Suit.Clubs]: 1,
+            [Suit.Diamonds]: 0,
+            [Suit.Hearts]: -1,
+            [Suit.Spades]: -3,
+        })[card.suit],
+        money: card.value === 1 || card.value > 10 ? -5 : card.value,
+        victoryPoints: ({
+            11: 10,
+            12: 20,
+            13: 30,
+            1: 50,
+        })[card.value] ?? 0
+    };
+}
+
+type Lacks = {
+    actionPoints: boolean;
+    energy: boolean;
+    money: boolean;
+}
+
+export function getLacks(delta: Resources, state: State): Lacks | undefined {
+    const lacks: Lacks = {
+        actionPoints: state.actionPoints + delta.actionPoints < 0,
+        energy: state.energy + delta.energy < 0,
+        money: state.money + delta.money < 0,
+    };
+    if (lacks.actionPoints || lacks.energy || lacks.money) {
+        return lacks;
+    } else return undefined;
+}
+
 export function perform(action: Action, state: State): CarpeDiemEvent {
     switch (action.type) {
         case "UseCard": {
@@ -89,40 +128,16 @@ export function perform(action: Action, state: State): CarpeDiemEvent {
                 return {type: "CardAlreadyUsed"};
             }
 
-            const card = state.dayCards[action.index];
-            const isSpecial = card.value === 1 || card.value > 10;
-
-            const deltaActionPoints = -(action.index + 1);
-            const deltaEnergy = ({
-                [Suit.Clubs]: 1,
-                [Suit.Diamonds]: 0,
-                [Suit.Hearts]: -1,
-                [Suit.Spades]: -3,
-            })[card.suit];
-            const deltaMoney = isSpecial ? -5 : card.value;
-            const deltaVictoryPoints = ({
-                11: 10,
-                12: 20,
-                13: 30,
-                1: 50,
-            })[card.value] ?? 0;
-
-            const lacksActionPoints = state.actionPoints + deltaActionPoints < 0;
-            const lacksEnergy = state.energy + deltaEnergy < 0;
-            const lacksMoney = state.money + deltaMoney < 0;
-            if (lacksActionPoints || lacksEnergy || lacksMoney) {
-                return {
-                    type: "NotEnoughResources",
-                    lacksActionPoints,
-                    lacksEnergy,
-                    lacksMoney,
-                };
+            const delta = getDelta(action.index, state);
+            const lacks = getLacks(delta, state);
+            if (lacks) {
+                return { type: "NotEnoughResources", lacks };
             }
 
-            state.actionPoints += deltaActionPoints;
-            state.energy += deltaEnergy;
-            state.money += deltaMoney;
-            state.victoryPoints += deltaVictoryPoints;
+            state.actionPoints += delta.actionPoints;
+            state.energy += delta.energy;
+            state.money += delta.money;
+            state.victoryPoints += delta.victoryPoints;
 
             state.used[action.index] = true;
 
@@ -168,7 +183,5 @@ export function perform(action: Action, state: State): CarpeDiemEvent {
 
 const notEnoughActionPoints: CarpeDiemEvent = {
     type: "NotEnoughResources",
-    lacksActionPoints: true,
-    lacksEnergy: false,
-    lacksMoney: false,
+    lacks: { actionPoints: true, energy: false, money: false },
 }

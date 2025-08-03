@@ -1,7 +1,7 @@
 import Phaser from "phaser";
 import {
     type Card,
-    generateDeck,
+    generateDeck, getDelta, getLacks,
     newGameState, perform,
 } from "./model.ts";
 
@@ -22,7 +22,7 @@ const textStyle: Phaser.Types.GameObjects.Text.TextStyle = {
 const lineHeight = 1.2;
 const gameBgColor = "#192a56";
 const buttonBgColor = "#1751e6";
-const usedCardTint = 0x888888;
+const disabledCardTint = 0x888888;
 const disabledButtonTint = 0x888888;
 
 new Phaser.Game({
@@ -49,8 +49,10 @@ new Phaser.Game({
             const updateUI = () => {
                 counters.forEach(counter => counter.update());
                 cardImages.forEach((image, index) => {
+                    const delta = getDelta(index, state);
+                    const lacks = getLacks(delta, state);
                     image.setTexture(getCardKey(state.dayCards[index]));
-                    image.setTint(state.used[index] ? usedCardTint : 0xFFFFFF);
+                    image.setTint(state.used[index] || lacks ? disabledCardTint : 0xFFFFFF);
                 });
                 freelanceButton.setEnabled(state.actionPoints >= 1);
                 recuperateButton.setEnabled(state.actionPoints >= 1);
