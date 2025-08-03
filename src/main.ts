@@ -120,9 +120,11 @@ new Phaser.Game({
                 }).on(Phaser.Input.Events.POINTER_OVER, () => {
                     cardImage.setTint(getCardTint(i, true));
                     this.input.setDefaultCursor("pointer");
-                    const delta = getDelta(i, state);
-                    for (const resource of Object.keys(delta) as (keyof Resources)[]) {
-                        counters[resource].update(state[resource] + delta[resource]);
+                    if (!state.used[i]) {
+                        const delta = getDelta(i, state);
+                        for (const resource of Object.keys(delta) as (keyof Resources)[]) {
+                            counters[resource].update(state[resource] + delta[resource]);
+                        }
                     }
                 }).on(Phaser.Input.Events.POINTER_OUT, () => {
                     cardImage.setTint(getCardTint(i, false));
