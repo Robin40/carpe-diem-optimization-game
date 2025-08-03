@@ -11,14 +11,15 @@ const gameHeight = window.innerHeight;
 const cardHeight = gameHeight / 3;
 const cardWidth = cardHeight / Math.sqrt(2);
 const gapX = gameWidth / 80;
-const fontSize = gameHeight * 0.07;
+const defaultFontSize = gameHeight * 0.062;
+const hintFontSize = gameHeight * 0.035
 const buttonPadding = {
-    x: fontSize,
-    y: fontSize * 0.1,
+    x: defaultFontSize,
+    y: defaultFontSize * 0.1,
 };
 const textStyle: Phaser.Types.GameObjects.Text.TextStyle = {
     fontFamily: "serif",
-    fontSize,
+    fontSize: defaultFontSize,
 };
 const lineHeight = 1.2;
 const gameBgColor = "#192a56";
@@ -72,20 +73,20 @@ new Phaser.Game({
                 }
             }
 
-            const counters = [
-                addCounter(this, gapX, 0, "Day", () => state.day),
-                addCounter(this, gameWidth / 2, 0, "Victory Points", () => state.victoryPoints),
-                addCounter(this, gapX, fontSize * lineHeight, "Energy", () => state.energy),
-                addCounter(this, gameWidth / 2, fontSize * lineHeight, "Money", () => state.money),
-                addCounter(this, gapX, fontSize * lineHeight * 2, "Time", () => state.actionPoints),
-            ];
+            const counters = {
+                day: addCounter(this, gapX, 0, "Day", () => state.day),
+                victoryPoints: addCounter(this, gameWidth / 2, 0, "Victory Points", () => state.victoryPoints),
+                energy: addCounter(this, gapX, defaultFontSize * lineHeight, "Energy", () => state.energy),
+                money: addCounter(this, gameWidth / 2, defaultFontSize * lineHeight, "Money", () => state.money),
+                actionPoints: addCounter(this, gapX, defaultFontSize * lineHeight * 2, "Time", () => state.actionPoints),
+            };
             const getCardTint = (index: number, hovered: boolean) => {
                 const delta = getDelta(index, state);
                 const lacks = getLacks(delta, state);
                 return state.used[index] ? disabledCardTint : lacks ? unaffordableTint : hovered ? hoveredCardTint : 0xFFFFFF;
             }
             const updateUI = () => {
-                counters.forEach(counter => counter.update());
+                Object.values(counters).forEach(counter => counter.update());
                 cardImages.forEach((image, index) => {
                     image.setTexture(getCardKey(state.dayCards[index]));
                     image.setTint(getCardTint(index, false));
@@ -119,15 +120,20 @@ new Phaser.Game({
                 }).on(Phaser.Input.Events.POINTER_OVER, () => {
                     cardImage.setTint(getCardTint(i, true));
                     this.input.setDefaultCursor("pointer");
+                    const delta = getDelta(i, state);
+                    for (const resource of Object.keys(delta) as (keyof Resources)[]) {
+                        counters[resource].update(state[resource] + delta[resource]);
+                    }
                 }).on(Phaser.Input.Events.POINTER_OUT, () => {
                     cardImage.setTint(getCardTint(i, false));
                     this.input.setDefaultCursor("default");
+                    Object.values(counters).forEach(counter => counter.update());
                 });
                 cardImages.push(cardImage);
 
                 cardHints.push(
                     this.add.text(cardImage.x, cardImage.y + cardHeight / 2, "",
-                        { ...textStyle, fontSize: fontSize * 0.5 }
+                        { ...textStyle, fontSize: hintFontSize }
                     ).setOrigin(0.5, 0)
                 );
             }
@@ -138,13 +144,23 @@ new Phaser.Game({
                 gameHeight * 0.85,
                 `${emoji.energy} Recuperate`,
                 () => send({ type: "Recuperate" }),
+                () => {
+                    counters.actionPoints.update(state.actionPoints - 1);
+                    counters.energy.update(state.energy + 1);
+                },
+                () => Object.values(counters).forEach(counter => counter.update()),
             );
             const freelanceButton = addButton(
                 this,
                 gameWidth * 0.75,
                 gameHeight * 0.85,
                 `${emoji.money} Freelance`,
-                () => send({ type: "Freelance" })
+                () => send({ type: "Freelance" }),
+                () => {
+                    counters.actionPoints.update(state.actionPoints - 1);
+                    counters.money.update(state.money + 1);
+                },
+                () => Object.values(counters).forEach(counter => counter.update()),
             );
         },
         update() {},
@@ -152,16 +168,21 @@ new Phaser.Game({
 });
 
 function addCounter(scene: Phaser.Scene, x: number, y: number, label: string, getter: () => number) {
-    const contents = () => `${label}: ${getter()}`;
-    const text = scene.add.text(x, y, contents(), textStyle);
+    const withoutPreview = () => `${label}: ${getter()}`;
+    const text = scene.add.text(x, y, withoutPreview(), textStyle);
     return {
-        update() {
-            text.setText(contents());
+        update(previewValue?: number) {
+            let contents = withoutPreview();
+            if (previewValue !== undefined && previewValue !== getter()) {
+                contents += ` → ${previewValue}`;
+            }
+            text.setText(contents);
         },
     };
 }
 
-function addButton(scene: Phaser.Scene, x: number, y: number, label: string, onClick: () => void) {
+function addButton(scene: Phaser.Scene, x: number, y: number, label: string,
+                   onClick: () => void, onPointerOver: () => void, onPointerOut: () => void) {
     const style: Phaser.Types.GameObjects.Text.TextStyle = {
         ...textStyle,
         backgroundColor: buttonBgColor,
@@ -173,10 +194,12 @@ function addButton(scene: Phaser.Scene, x: number, y: number, label: string, onC
         .on(Phaser.Input.Events.POINTER_OVER, () => {
             text.setTint(hoveredButtonTint);
             scene.input.setDefaultCursor("pointer");
+            onPointerOver();
         })
         .on(Phaser.Input.Events.POINTER_OUT, () => {
             text.setTint(0xFFFFFF);
             scene.input.setDefaultCursor("default");
+            onPointerOut();
         })
         .setOrigin(0.5, 0);
     return {
