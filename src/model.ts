@@ -32,25 +32,31 @@ type State = {
     drawPile: Card[];
     dayCards: Card[];
     used: boolean[];
+    gameEnded: boolean;
 };
 
 export function newGameState(): State {
-    let drawPile = Phaser.Utils.Array.Shuffle(generateDeck());
-    let dayCards: Card[] = [];
-    for (let i = 0; i < 4; i++) {
-        dayCards.push(drawPile.pop()!);
-    }
-
-    return {
+    let state = {
         day: 1,
         victoryPoints: 0,
         energy: 3,
         money: 8,
         actionPoints: 5,
         drawPile: Phaser.Utils.Array.Shuffle(generateDeck()),
-        dayCards,
+        dayCards: [],
         used: [false, false, false, false],
+        gameEnded: false,
     };
+    draw(state);
+    return state;
+}
+
+function draw(state: State): void {
+    state.dayCards = [];
+    for (let i = 0; i < 4; i++) {
+        state.dayCards.push(state.drawPile.pop()!);
+    }
+    state.used = [false, false, false, false];
 }
 
 export type UseCardResult =
@@ -121,4 +127,30 @@ export function doRecuperate(state: State): boolean {
     state.actionPoints -= 1;
     state.energy += 1;
     return true;
+}
+
+type EndDayResult =
+    | { type: "KeepGoing" }
+    | { type: "Win"; score: number }
+    | { type: "Lose" };
+
+export function endDay(state: State): EndDayResult {
+    state.money -= 4;
+    state.energy -= 1;
+    if (state.money < 0 || state.energy < 0) {
+        state.gameEnded = true;
+        return { type: "Lose" };
+    }
+
+    if (state.day === 13) {
+        state.gameEnded = true;
+        return { type: "Win", score: state.victoryPoints + state.money };
+    }
+
+    return { type: "KeepGoing" };
+}
+
+export function beginNextDay(state: State) {
+    state.actionPoints = 5;
+    draw(state);
 }

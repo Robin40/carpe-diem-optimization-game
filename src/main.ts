@@ -1,5 +1,14 @@
 import Phaser from "phaser";
-import {type Card, doFreelance, doRecuperate, generateDeck, newGameState, useCard} from "./model.ts";
+import {
+    beginNextDay,
+    type Card,
+    doFreelance,
+    doRecuperate,
+    endDay,
+    generateDeck,
+    newGameState,
+    useCard
+} from "./model.ts";
 
 const gameWidth = window.innerWidth;
 const gameHeight = window.innerHeight;
@@ -44,10 +53,25 @@ new Phaser.Game({
             ];
             const updateUI = () => {
                 counters.forEach(counter => counter.update());
+                cardImages.forEach((image, index) => {
+                    image.setTexture(getCardKey(state.dayCards[index]));
+                    image.setTint(state.used[index] ? usedCardTint : 0xFFFFFF);
+                });
                 freelanceButton.setEnabled(state.actionPoints >= 1);
                 recuperateButton.setEnabled(state.actionPoints >= 1);
+
+                if (state.actionPoints === 0 && !state.gameEnded) {
+                    setTimeout(() => {
+                        endDay(state);
+                        if (!state.gameEnded) {
+                            beginNextDay(state);
+                        }
+                        updateUI();
+                    }, 500);
+                }
             }
 
+            const cardImages: Phaser.GameObjects.Image[] = [];
             for (let i = 0; i < state.dayCards.length; i++) {
                 const card = state.dayCards[i];
                 const cardImage = this.add.image(
@@ -59,7 +83,6 @@ new Phaser.Game({
                     switch (result.type) {
                         case "UseCard":
                             updateUI();
-                            cardImage.setTint(usedCardTint);
                             break;
                         case "CardAlreadyUsed":
                             break;
@@ -68,6 +91,7 @@ new Phaser.Game({
                             break;
                     }
                 });
+                cardImages.push(cardImage);
             }
 
             const freelanceButton = addButton(this, gameWidth / 2, gameHeight * 0.75, "Freelance", () => {
