@@ -53,25 +53,19 @@ export function newGameState(): State {
     };
 }
 
-export enum EventType {
-    UseCard,
-    CardAlreadyUsed,
-    NotEnoughResources,
-}
-
-export type CarpeDiemEvent =
-    | { type: EventType.UseCard }
-    | { type: EventType.CardAlreadyUsed }
+export type UseCardResult =
+    | { type: "UseCard" }
+    | { type: "CardAlreadyUsed" }
     | {
-        type: EventType.NotEnoughResources;
+        type: "NotEnoughResources";
         lacksActionPoints: boolean;
         lacksEnergy: boolean;
         lacksMoney: boolean;
-      };
+    };
 
-export function useCard(card: Card, index: number, state: State): CarpeDiemEvent {
+export function useCard(card: Card, index: number, state: State): UseCardResult {
     if (state.used[index]) {
-        return { type: EventType.CardAlreadyUsed };
+        return { type: "CardAlreadyUsed" };
     }
 
     const isSpecial = card.value === 1 || card.value > 10;
@@ -96,7 +90,7 @@ export function useCard(card: Card, index: number, state: State): CarpeDiemEvent
     const lacksMoney = state.money + deltaMoney < 0;
     if (lacksActionPoints || lacksEnergy || lacksMoney) {
         return {
-            type: EventType.NotEnoughResources,
+            type: "NotEnoughResources",
             lacksActionPoints,
             lacksEnergy,
             lacksMoney,
@@ -110,5 +104,21 @@ export function useCard(card: Card, index: number, state: State): CarpeDiemEvent
 
     state.used[index] = true;
 
-    return { type: EventType.UseCard };
+    return { type: "UseCard" };
+}
+
+export function doFreelance(state: State): boolean {
+    if (state.actionPoints < 1) return false;
+
+    state.actionPoints -= 1;
+    state.money += 1;
+    return true;
+}
+
+export function doRecuperate(state: State): boolean {
+    if (state.actionPoints < 1) return false;
+
+    state.actionPoints -= 1;
+    state.energy += 1;
+    return true;
 }

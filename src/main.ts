@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import {type Card, EventType, generateDeck, newGameState, useCard} from "./model.ts";
+import {type Card, doFreelance, doRecuperate, generateDeck, newGameState, useCard} from "./model.ts";
 
 const gameWidth = window.innerWidth;
 const gameHeight = window.innerHeight;
@@ -7,19 +7,25 @@ const cardHeight = gameHeight / 3;
 const cardWidth = cardHeight / Math.sqrt(2);
 const gapX = gameWidth / 80;
 const fontSize = gameHeight / 12;
-const textStyle = {
+const buttonPadding = {
+    x: fontSize,
+    y: fontSize * 0.1,
+};
+const textStyle: Phaser.Types.GameObjects.Text.TextStyle = {
     fontFamily: "serif",
     fontSize,
 };
 const lineHeight = 1.2;
-const backgroundColor = "#192a56";
+const gameBgColor = "#192a56";
+const buttonBgColor = "#1751e6";
 const usedCardTint = 0x888888;
+const disabledButtonTint = 0x888888;
 
 new Phaser.Game({
     type: Phaser.AUTO,
     width: gameWidth,
     height: gameHeight,
-    backgroundColor,
+    backgroundColor: gameBgColor,
     scene: {
         preload() {
             for (const card of generateDeck()) {
@@ -36,6 +42,12 @@ new Phaser.Game({
                 addCounter(this, gameWidth / 2, fontSize * lineHeight, "Money", () => state.money),
                 addCounter(this, gapX, fontSize * lineHeight * 2, "Action Points", () => state.actionPoints),
             ];
+            const updateUI = () => {
+                counters.forEach(counter => counter.update());
+                freelanceButton.setEnabled(state.actionPoints >= 1);
+                recuperateButton.setEnabled(state.actionPoints >= 1);
+            }
+
             for (let i = 0; i < state.dayCards.length; i++) {
                 const card = state.dayCards[i];
                 const cardImage = this.add.image(
@@ -43,20 +55,31 @@ new Phaser.Game({
                     gameHeight / 2,
                     getCardKey(card),
                 ).setInteractive().on(Phaser.Input.Events.POINTER_DOWN, ()=> {
-                    const event = useCard(card, i, state);
-                    switch (event.type) {
-                        case EventType.UseCard:
-                            counters.forEach(counter => counter.update());
+                    const result = useCard(card, i, state);
+                    switch (result.type) {
+                        case "UseCard":
+                            updateUI();
                             cardImage.setTint(usedCardTint);
                             break;
-                        case EventType.CardAlreadyUsed:
+                        case "CardAlreadyUsed":
                             break;
-                        case EventType.NotEnoughResources:
-                            alert(JSON.stringify(event, null, 4));
+                        case "NotEnoughResources":
+                            alert(JSON.stringify(result, null, 4));
                             break;
                     }
                 });
             }
+
+            const freelanceButton = addButton(this, gameWidth / 2, gameHeight * 0.75, "Freelance", () => {
+                if (doFreelance(state)) {
+                    updateUI();
+                }
+            });
+            const recuperateButton = addButton(this, gameWidth / 2, gameHeight * 0.75 + (fontSize * lineHeight + buttonPadding.y * 2), "Recuperate", () => {
+                if (doRecuperate(state)) {
+                    updateUI();
+                }
+            });
         },
         update() {},
     }
@@ -69,6 +92,22 @@ function addCounter(scene: Phaser.Scene, x: number, y: number, label: string, ge
         update() {
             text.setText(contents());
         },
+    };
+}
+
+function addButton(scene: Phaser.Scene, x: number, y: number, label: string, onClick: () => void) {
+    const style: Phaser.Types.GameObjects.Text.TextStyle = {
+        ...textStyle,
+        backgroundColor: buttonBgColor,
+        padding: buttonPadding,
+    };
+    const text = scene.add.text(x, y, label, style)
+        .setInteractive().on(Phaser.Input.Events.POINTER_DOWN, onClick)
+        .setOrigin(0.5, 0);
+    return {
+        setEnabled(enabled: boolean) {
+            text.setTint(enabled ? 0xFFFFFF : disabledButtonTint);
+        }
     };
 }
 
