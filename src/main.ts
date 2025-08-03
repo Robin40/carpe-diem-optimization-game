@@ -18,15 +18,27 @@ type Dimensions = {
 
 // Configuration
 const CONFIG = {
-    dimensions: (gameWidth: number, gameHeight: number): Dimensions => ({
-        gameWidth,
-        gameHeight,
-        get cardHeight() { return this.gameHeight / 3; },
-        get cardWidth() { return this.cardHeight / Math.sqrt(2); },
-        get gapX() { return this.gameWidth / 80; },
-        get defaultFontSize() { return this.gameHeight * 0.062; },
-        get hintFontSize() { return this.gameHeight * 0.035; },
-    }),
+    dimensions: (gameWidth: number, gameHeight: number): Dimensions => {
+        const cardAspectRatio = Math.sqrt(2);
+        const portraitCardWidth = gameWidth * 0.22;
+        const portraitCardHeight = portraitCardWidth * cardAspectRatio;
+        const landscapeCardHeight = gameHeight / 3;
+
+        const portraitDefaultFontSize = gameWidth * 0.06;
+        const landscapeDefaultFontSize = gameHeight * 0.058;
+        const portraitHintFontSize = gameWidth * 0.055;
+        const landscapeHintFontSize = gameHeight * 0.035;
+
+        return {
+            gameWidth,
+            gameHeight,
+            get cardHeight(){ return Math.min(portraitCardHeight, landscapeCardHeight); },
+            get cardWidth() { return this.cardHeight / cardAspectRatio; },
+            get gapX() { return this.gameWidth / 80; },
+            get defaultFontSize() { return Math.min(portraitDefaultFontSize, landscapeDefaultFontSize); },
+            get hintFontSize() { return Math.min(portraitHintFontSize, landscapeHintFontSize) },
+        };
+    },
     colors: {
         gameBg: "#192a56",
         buttonBg: "#1751e6",
@@ -115,7 +127,7 @@ class GameScene extends Phaser.Scene implements SceneOptionalMethods {
                 "Day",
                 () => this.state.day),
             victoryPoints: new Counter(this,
-                dims => dims.gameWidth / 2,
+                dims => dims.gameWidth * 0.4,
                 () => 0,
                 "Victory Points",
                 () => this.state.victoryPoints,
@@ -127,7 +139,7 @@ class GameScene extends Phaser.Scene implements SceneOptionalMethods {
                 () => this.state.energy,
                 () => this.getPreviewValue("energy")),
             money: new Counter(this,
-                dims => dims.gameWidth / 2,
+                dims => dims.gameWidth * 0.4,
                 dims => dims.defaultFontSize * CONFIG.text.lineHeight,
                 "Money",
                 () => this.state.money,
