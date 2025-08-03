@@ -73,12 +73,21 @@ new Phaser.Game({
                 }
             }
 
+            let _previewedDelta: Resources | undefined = undefined;
+            const getPreview = (resource: keyof Resources): number | undefined => {
+                return _previewedDelta && state[resource] + _previewedDelta[resource];
+            };
+            const setPreview = (delta: Resources | undefined): void => {
+                _previewedDelta = delta;
+                Object.values(counters).forEach(counter => counter.update());
+            };
+
             const counters = {
-                day: addCounter(this, gapX, 0, "Day", () => state.day),
-                victoryPoints: addCounter(this, gameWidth / 2, 0, "Victory Points", () => state.victoryPoints),
-                energy: addCounter(this, gapX, defaultFontSize * lineHeight, "Energy", () => state.energy),
-                money: addCounter(this, gameWidth / 2, defaultFontSize * lineHeight, "Money", () => state.money),
-                actionPoints: addCounter(this, gapX, defaultFontSize * lineHeight * 2, "Time", () => state.actionPoints),
+                day: addCounter(this, gapX, 0, "Day", () => state.day, () => undefined),
+                victoryPoints: addCounter(this, gameWidth / 2, 0, "Victory Points", () => state.victoryPoints, () => getPreview("victoryPoints")),
+                energy: addCounter(this, gapX, defaultFontSize * lineHeight, "Energy", () => state.energy, () => getPreview("energy")),
+                money: addCounter(this, gameWidth / 2, defaultFontSize * lineHeight, "Money", () => state.money, () => getPreview("money")),
+                actionPoints: addCounter(this, gapX, defaultFontSize * lineHeight * 2, "Time", () => state.actionPoints, () => getPreview("actionPoints")),
             };
             const getCardTint = (index: number, hovered: boolean) => {
                 const delta = getDelta(index, state);
@@ -121,15 +130,12 @@ new Phaser.Game({
                     cardImage.setTint(getCardTint(i, true));
                     this.input.setDefaultCursor("pointer");
                     if (!state.used[i]) {
-                        const delta = getDelta(i, state);
-                        for (const resource of Object.keys(delta) as (keyof Resources)[]) {
-                            counters[resource].update(state[resource] + delta[resource]);
-                        }
+                        setPreview(getDelta(i, state));
                     }
                 }).on(Phaser.Input.Events.POINTER_OUT, () => {
                     cardImage.setTint(getCardTint(i, false));
                     this.input.setDefaultCursor("default");
-                    Object.values(counters).forEach(counter => counter.update());
+                    setPreview(undefined);
                 });
                 cardImages.push(cardImage);
 
@@ -146,11 +152,8 @@ new Phaser.Game({
                 gameHeight * 0.85,
                 `${emoji.energy} Recuperate`,
                 () => send({ type: "Recuperate" }),
-                () => {
-                    counters.actionPoints.update(state.actionPoints - 1);
-                    counters.energy.update(state.energy + 1);
-                },
-                () => Object.values(counters).forEach(counter => counter.update()),
+                () => setPreview({ actionPoints: -1, energy: 1, money: 0, victoryPoints: 0 }),
+                () => setPreview(undefined),
             );
             const freelanceButton = addButton(
                 this,
@@ -158,24 +161,23 @@ new Phaser.Game({
                 gameHeight * 0.85,
                 `${emoji.money} Freelance`,
                 () => send({ type: "Freelance" }),
-                () => {
-                    counters.actionPoints.update(state.actionPoints - 1);
-                    counters.money.update(state.money + 1);
-                },
-                () => Object.values(counters).forEach(counter => counter.update()),
+                () => setPreview({ actionPoints: -1, money: 1, energy: 0, victoryPoints: 0 }),
+                () => setPreview(undefined),
             );
         },
         update() {},
     }
 });
 
-function addCounter(scene: Phaser.Scene, x: number, y: number, label: string, getter: () => number) {
-    const withoutPreview = () => `${label}: ${getter()}`;
+function addCounter(scene: Phaser.Scene, x: number, y: number, label: string,
+                    getCurrent: () => number, getPreview: () => number | undefined) {
+    const withoutPreview = () => `${label}: ${getCurrent()}`;
     const text = scene.add.text(x, y, withoutPreview(), textStyle);
     return {
-        update(previewValue?: number) {
+        update() {
             let contents = withoutPreview();
-            const currentValue = getter();
+            const currentValue = getCurrent();
+            const previewValue = getPreview();
             if (previewValue !== undefined && previewValue !== currentValue) {
                 contents += ` → ${previewValue}`;
             }
