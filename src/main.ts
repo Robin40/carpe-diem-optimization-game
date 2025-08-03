@@ -1,8 +1,9 @@
 import Phaser from "phaser";
 import {
+    type Action, apply,
     type Card,
     generateDeck, getDelta, getLacks,
-    newGameState, perform,
+    newGameState,
 } from "./model.ts";
 
 const gameWidth = window.innerWidth;
@@ -39,6 +40,23 @@ new Phaser.Game({
         },
         create() {
             let state = newGameState();
+            function send(action: Action) {
+                const event = apply(action, state);
+                switch (event.type) {
+                    case "DayEnd":
+                        if (!state.gameEnded) {
+                            send({ type: "BeginNextDay" });
+                        }
+                        break;
+                }
+                if (state.actionPoints === 0 && !state.gameEnded) {
+                    setTimeout(() => {
+                        send({ type: "EndDay" });
+                    }, 500);
+                }
+                updateUI();
+            }
+
             const counters = [
                 addCounter(this, gapX, 0, "Day", () => state.day),
                 addCounter(this, gameWidth / 2, 0, "Victory Points", () => state.victoryPoints),
@@ -56,16 +74,6 @@ new Phaser.Game({
                 });
                 freelanceButton.setEnabled(state.actionPoints >= 1);
                 recuperateButton.setEnabled(state.actionPoints >= 1);
-
-                if (state.actionPoints === 0 && !state.gameEnded) {
-                    setTimeout(() => {
-                        perform({ type: "EndDay" }, state);
-                        if (!state.gameEnded) {
-                            perform({ type: "BeginNextDay" }, state);
-                        }
-                        updateUI();
-                    }, 500);
-                }
             }
 
             const cardImages: Phaser.GameObjects.Image[] = [];
@@ -76,28 +84,16 @@ new Phaser.Game({
                     gameHeight / 2,
                     getCardKey(card),
                 ).setInteractive().on(Phaser.Input.Events.POINTER_DOWN, ()=> {
-                    const event = perform({ type: "UseCard", index: i }, state);
-                    switch (event.type) {
-                        case "UseCard":
-                            updateUI();
-                            break;
-                        case "CardAlreadyUsed":
-                            break;
-                        case "NotEnoughResources":
-                            alert(JSON.stringify(event, null, 4));
-                            break;
-                    }
+                    send({ type: "UseCard", index: i });
                 });
                 cardImages.push(cardImage);
             }
 
             const freelanceButton = addButton(this, gameWidth / 2, gameHeight * 0.75, "Freelance", () => {
-                perform({ type: "Freelance" }, state);
-                updateUI();
+                send({ type: "Freelance" });
             });
             const recuperateButton = addButton(this, gameWidth / 2, gameHeight * 0.75 + (fontSize * lineHeight + buttonPadding.y * 2), "Recuperate", () => {
-                perform({ type: "Recuperate" }, state);
-                updateUI();
+                send({ type: "Recuperate" });
             });
         },
         update() {},

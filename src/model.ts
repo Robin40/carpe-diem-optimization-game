@@ -70,7 +70,7 @@ export type CarpeDiemEvent =
     | { type: "Win"; score: number }
     | { type: "Lose" };
 
-type Action =
+export type Action =
     | { type: "UseCard", index: number }
     | { type: "Freelance" }
     | { type: "Recuperate" }
@@ -121,7 +121,7 @@ export function getLacks(delta: Resources, state: State): Lacks | undefined {
     } else return undefined;
 }
 
-export function perform(action: Action, state: State): CarpeDiemEvent {
+export function apply(action: Action, state: State): CarpeDiemEvent {
     switch (action.type) {
         case "UseCard": {
             if (state.used[action.index]) {
