@@ -80,7 +80,7 @@ class GameScene extends Phaser.Scene implements SceneOptionalMethods {
     private views: View[] = [];
 
     // UI Components
-    private counters: Record<string, Counter> = {};
+    private gridItems: Record<string, GridItem> = {};
     private cardViews: CardView[] = [];
     private recuperateButton!: Button;
     private freelanceButton!: Button;
@@ -119,8 +119,8 @@ class GameScene extends Phaser.Scene implements SceneOptionalMethods {
     private createUI() {
         const { emoji } = CONFIG;
 
-        // Create counters
-        this.counters = {
+        // Create gridItems
+        this.gridItems = {
             day: new Counter(this, 0, "Day", () => this.state.day),
             victoryPoints: new Counter(this, 1, "Victory Points", () => this.state.victoryPoints,
                 () => this.getPreviewValue("victoryPoints")),
@@ -130,6 +130,7 @@ class GameScene extends Phaser.Scene implements SceneOptionalMethods {
                 () => this.getPreviewValue("money")),
             actionPoints: new Counter(this, 4, "Time", () => this.state.actionPoints,
                 () => this.getPreviewValue("actionPoints")),
+            gameResult: new GameResult(this, 5, this.state),
         };
 
         // Create cards
@@ -158,7 +159,7 @@ class GameScene extends Phaser.Scene implements SceneOptionalMethods {
 
         // Position everything initially
         this.views = [
-            ...Object.values(this.counters),
+            ...Object.values(this.gridItems),
             ...this.cardViews,
             this.recuperateButton,
             this.freelanceButton,
@@ -224,7 +225,7 @@ class GameScene extends Phaser.Scene implements SceneOptionalMethods {
 
     private setPreview(preview?: { delta: Resources; cardIndex?: number }) {
         this.preview = preview;
-        Object.values(this.counters).forEach(counter => counter.update());
+        Object.values(this.gridItems).forEach(item => item.update());
     }
 
     private getPreviewValue(resource: keyof Resources): number | undefined {
@@ -245,8 +246,8 @@ class GameScene extends Phaser.Scene implements SceneOptionalMethods {
     }
 
     private updateUI() {
-        // Update counters
-        Object.values(this.counters).forEach(counter => counter.update());
+        // Update gridItems
+        Object.values(this.gridItems).forEach(item => item.update());
 
         // Update cards
         this.cardViews.forEach((cardView, index) => {
@@ -264,30 +265,62 @@ interface View {
     updatePosition(dims: Dimensions): void;
 }
 
-// UI Component Classes
-class Counter implements View {
-    private text: Phaser.GameObjects.Text;
+abstract class GridItem implements View {
+    protected text: Phaser.GameObjects.Text;
 
-    constructor(
-        scene: Phaser.Scene,
-        private gridItemIndex: number,
-        private label: string,
-        private getCurrent: () => number,
-        private getPreview?: () => number | undefined
-    ) {
-        this.text = scene.add.text(0, 0, this.getDisplayText(), {
+    protected constructor(scene: Phaser.Scene, protected index: number) {
+        this.text = scene.add.text(0, 0, "", {
             fontFamily: CONFIG.text.fontFamily,
         });
     }
 
     updatePosition(dims: Dimensions): void {
         const columns = dims.gameWidth / dims.gameHeight < 0.6 ? 1 : 2;
-        const col = this.gridItemIndex % columns;
-        const row = Math.floor(this.gridItemIndex / columns);
+        const col = this.index % columns;
+        const row = Math.floor(this.index / columns);
         const fontSize = columns === 2 ? dims.defaultFontSize : dims.defaultFontSize * 1.5;
         this.text.setX(col === 0 ? dims.gapX : dims.gameWidth * 0.4);
         this.text.setY(row * fontSize * CONFIG.text.lineHeight);
         this.text.setFontSize(fontSize);
+    }
+
+    abstract update(): void;
+}
+
+class GameResult extends GridItem implements View {
+    constructor(
+        scene: Phaser.Scene,
+        gridItemIndex: number,
+        private state: State
+    ) {
+        super(scene, gridItemIndex);
+    }
+
+    update(): void {
+        if (!this.state.gameEnded) {
+            this.text.setText("");
+        } else if (this.state.energy >= 0 && this.state.money >= 0) {
+            this.text.setText(`Final score: ${this.state.victoryPoints + this.state.money}`);
+            this.text.setColor("#00FF00");
+        } else if (this.state.energy < 0) {
+            this.text.setText("Died from exhaustion");
+            this.text.setColor("#FF0000");
+        } else {
+            this.text.setText("Can't pay living expenses");
+            this.text.setColor("#FF0000");
+        }
+    }
+}
+
+class Counter extends GridItem implements View {
+    constructor(
+        scene: Phaser.Scene,
+        gridItemIndex: number,
+        private label: string,
+        private getCurrent: () => number,
+        private getPreview?: () => number | undefined
+    ) {
+        super(scene, gridItemIndex);
     }
 
     update(): void {
