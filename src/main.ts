@@ -26,6 +26,7 @@ const buttonBgColor = "#1751e6";
 const disabledCardTint = 0x888888;
 const disabledButtonTint = 0x888888;
 const unaffordableTint = 0xCC8888;
+const hoveredCardTint = 0xFFFFDD;
 
 new Phaser.Game({
     type: Phaser.AUTO,
@@ -71,13 +72,16 @@ new Phaser.Game({
                 addCounter(this, gameWidth / 2, fontSize * lineHeight, "Money", () => state.money),
                 addCounter(this, gapX, fontSize * lineHeight * 2, "Time", () => state.actionPoints),
             ];
+            const getCardTint = (index: number, hovered: boolean) => {
+                const delta = getDelta(index, state);
+                const lacks = getLacks(delta, state);
+                return state.used[index] ? disabledCardTint : lacks ? unaffordableTint : hovered ? hoveredCardTint : 0xFFFFFF;
+            }
             const updateUI = () => {
                 counters.forEach(counter => counter.update());
                 cardImages.forEach((image, index) => {
-                    const delta = getDelta(index, state);
-                    const lacks = getLacks(delta, state);
                     image.setTexture(getCardKey(state.dayCards[index]));
-                    image.setTint(state.used[index] ? disabledCardTint : lacks ? unaffordableTint : 0xFFFFFF);
+                    image.setTint(getCardTint(index, false));
                 });
                 cardHints.forEach((hint, index) => {
                     const delta = getDelta(index, state);
@@ -111,6 +115,12 @@ new Phaser.Game({
                     getCardKey(card),
                 ).setInteractive().on(Phaser.Input.Events.POINTER_DOWN, ()=> {
                     send({ type: "UseCard", index: i });
+                }).on(Phaser.Input.Events.POINTER_OVER, () => {
+                    cardImage.setTint(getCardTint(i, true));
+                    this.input.setDefaultCursor("pointer");
+                }).on(Phaser.Input.Events.POINTER_OUT, () => {
+                    cardImage.setTint(getCardTint(i, false));
+                    this.input.setDefaultCursor("default");
                 });
                 cardImages.push(cardImage);
 
