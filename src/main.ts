@@ -69,7 +69,7 @@ new Phaser.Game({
                 addCounter(this, gameWidth / 2, 0, "Victory Points", () => state.victoryPoints),
                 addCounter(this, gapX, fontSize * lineHeight, "Energy", () => state.energy),
                 addCounter(this, gameWidth / 2, fontSize * lineHeight, "Money", () => state.money),
-                addCounter(this, gapX, fontSize * lineHeight * 2, "Action Points", () => state.actionPoints),
+                addCounter(this, gapX, fontSize * lineHeight * 2, "Time", () => state.actionPoints),
             ];
             const updateUI = () => {
                 counters.forEach(counter => counter.update());
