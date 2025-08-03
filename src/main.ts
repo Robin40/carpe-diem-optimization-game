@@ -24,9 +24,9 @@ const CONFIG = {
         const portraitCardHeight = portraitCardWidth * cardAspectRatio;
         const landscapeCardHeight = gameHeight / 3;
 
-        const portraitDefaultFontSize = gameWidth * 0.06;
+        const portraitDefaultFontSize = gameWidth * 0.055;
         const landscapeDefaultFontSize = gameHeight * 0.058;
-        const portraitHintFontSize = gameWidth * 0.055;
+        const portraitHintFontSize = gameWidth * 0.048;
         const landscapeHintFontSize = gameHeight * 0.035;
 
         return {
@@ -121,34 +121,14 @@ class GameScene extends Phaser.Scene implements SceneOptionalMethods {
 
         // Create counters
         this.counters = {
-            day: new Counter(this,
-                dims => dims.gapX,
-                () => 0,
-                "Day",
-                () => this.state.day),
-            victoryPoints: new Counter(this,
-                dims => dims.gameWidth * 0.4,
-                () => 0,
-                "Victory Points",
-                () => this.state.victoryPoints,
+            day: new Counter(this, 0, "Day", () => this.state.day),
+            victoryPoints: new Counter(this, 1, "Victory Points", () => this.state.victoryPoints,
                 () => this.getPreviewValue("victoryPoints")),
-            energy: new Counter(this,
-                dims => dims.gapX,
-                dims => dims.defaultFontSize * CONFIG.text.lineHeight,
-                "Energy",
-                () => this.state.energy,
+            energy: new Counter(this, 2, "Energy", () => this.state.energy,
                 () => this.getPreviewValue("energy")),
-            money: new Counter(this,
-                dims => dims.gameWidth * 0.4,
-                dims => dims.defaultFontSize * CONFIG.text.lineHeight,
-                "Money",
-                () => this.state.money,
+            money: new Counter(this, 3, "Money", () => this.state.money,
                 () => this.getPreviewValue("money")),
-            actionPoints: new Counter(this,
-                dims => dims.gapX,
-                dims => dims.defaultFontSize * CONFIG.text.lineHeight * 2,
-                "Time",
-                () => this.state.actionPoints,
+            actionPoints: new Counter(this, 4, "Time", () => this.state.actionPoints,
                 () => this.getPreviewValue("actionPoints")),
         };
 
@@ -290,8 +270,7 @@ class Counter implements View {
 
     constructor(
         scene: Phaser.Scene,
-        private getX: (dims: Dimensions) => number,
-        private getY: (dims: Dimensions) => number,
+        private gridItemIndex: number,
         private label: string,
         private getCurrent: () => number,
         private getPreview?: () => number | undefined
@@ -302,9 +281,13 @@ class Counter implements View {
     }
 
     updatePosition(dims: Dimensions): void {
-        this.text.setX(this.getX(dims));
-        this.text.setY(this.getY(dims));
-        this.text.setFontSize(dims.defaultFontSize);
+        const columns = dims.gameWidth / dims.gameHeight < 0.6 ? 1 : 2;
+        const col = this.gridItemIndex % columns;
+        const row = Math.floor(this.gridItemIndex / columns);
+        const fontSize = columns === 2 ? dims.defaultFontSize : dims.defaultFontSize * 1.5;
+        this.text.setX(col === 0 ? dims.gapX : dims.gameWidth * 0.4);
+        this.text.setY(row * fontSize * CONFIG.text.lineHeight);
+        this.text.setFontSize(fontSize);
     }
 
     update(): void {
@@ -444,4 +427,7 @@ new Phaser.Game({
     },
     backgroundColor: CONFIG.colors.gameBg,
     scene: GameScene,
+    // render: {
+    //     pixelArt: true,
+    // },
 });
