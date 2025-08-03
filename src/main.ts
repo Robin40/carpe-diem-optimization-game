@@ -1,7 +1,7 @@
 import Phaser from "phaser";
 import {
     type Action, apply,
-    type Card,
+    type Card, type CarpeDiemEvent,
     generateDeck, getDelta, getLacks,
     newGameState,
 } from "./model.ts";
@@ -39,9 +39,20 @@ new Phaser.Game({
             }
         },
         create() {
-            let state = newGameState();
+            let [state, event] = newGameState();
+            receive(event);
+
             function send(action: Action) {
                 const event = apply(action, state);
+                receive(event);
+                if (state.actionPoints === 0 && !state.gameEnded) {
+                    setTimeout(() => {
+                        send({ type: "EndDay" });
+                    }, 500);
+                }
+                updateUI();
+            }
+            function receive(event: CarpeDiemEvent) {
                 switch (event.type) {
                     case "DayEnd":
                         if (!state.gameEnded) {
@@ -49,12 +60,6 @@ new Phaser.Game({
                         }
                         break;
                 }
-                if (state.actionPoints === 0 && !state.gameEnded) {
-                    setTimeout(() => {
-                        send({ type: "EndDay" });
-                    }, 500);
-                }
-                updateUI();
             }
 
             const counters = [

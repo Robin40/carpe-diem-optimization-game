@@ -35,9 +35,9 @@ type State = {
     gameEnded: boolean;
 };
 
-export function newGameState(): State {
+export function newGameState(): [State, CarpeDiemEvent] {
     let state = {
-        day: 1,
+        day: 0,
         victoryPoints: 0,
         energy: 3,
         money: 8,
@@ -47,16 +47,24 @@ export function newGameState(): State {
         used: [false, false, false, false],
         gameEnded: false,
     };
-    draw(state);
-    return state;
+    const event = beginDay(state);
+    return [state, event];
 }
 
-function draw(state: State): void {
+function beginDay(state: State): CarpeDiemEvent {
+    state.day++;
+    state.actionPoints = 5;
+
     state.dayCards = [];
     for (let i = 0; i < 4; i++) {
         state.dayCards.push(state.drawPile.pop()!);
     }
     state.used = [false, false, false, false];
+
+    const firstCardEnergy = Math.min(state.dayCards[0].value, 10);
+    const energyLoss = state.energy > firstCardEnergy ? 1 : 0;
+    state.energy -= energyLoss;
+    return { type: "DayStart", energyLoss };
 }
 
 export type CarpeDiemEvent =
@@ -65,7 +73,7 @@ export type CarpeDiemEvent =
     | { type: "NotEnoughResources"; lacks: Lacks; }
     | { type: "Freelance" }
     | { type: "Recuperate" }
-    | { type: "DayStart" }
+    | { type: "DayStart", energyLoss: number }
     | { type: "DayEnd" }
     | { type: "Win"; score: number }
     | { type: "Lose" };
@@ -174,9 +182,7 @@ export function apply(action: Action, state: State): CarpeDiemEvent {
         }
         case "BeginNextDay": {
             state.actionPoints = 5;
-            draw(state);
-
-            return {type: "DayStart"};
+            return beginDay(state);
         }
     }
 }
