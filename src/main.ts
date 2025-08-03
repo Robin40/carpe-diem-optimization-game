@@ -325,7 +325,7 @@ class CardView implements View {
     ) {
         this.image = scene.add.image(0, 0, getCardKey(this.getCard()))
             .setInteractive()
-            .on(Phaser.Input.Events.POINTER_DOWN, onClick)
+            .on(Phaser.Input.Events.POINTER_UP, onClick)
             .on(Phaser.Input.Events.POINTER_OVER, onPointerOver)
             .on(Phaser.Input.Events.POINTER_OUT, onPointerOut);
 
@@ -385,7 +385,7 @@ class Button implements View {
 
         this.text = scene.add.text(0, 0, label, style)
             .setInteractive()
-            .on(Phaser.Input.Events.POINTER_DOWN, onClick)
+            .on(Phaser.Input.Events.POINTER_UP, onClick)
             .on(Phaser.Input.Events.POINTER_OVER, () => {
                 this.text.setTint(CONFIG.colors.hoveredButton);
                 scene.input.setDefaultCursor("pointer");
