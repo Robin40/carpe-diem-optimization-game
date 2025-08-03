@@ -16,4 +16,8 @@ Contributions currently welcome. You may create a Pull Request.
 
 ## License
 
-Do whatever you want with this, you can fork it without attribution. You may even try to sell this or a derived product.
+This project is dedicated to the public domain under the [CC0 1.0 Universal (CC0 1.0) Public Domain Dedication](https://creativecommons.org/publicdomain/zero/1.0/).
+
+You can copy, modify, distribute and perform the work, even for commercial purposes, all without asking permission.
+
+The card images were generated with https://www.me.uk/cards/ and are also licensed under [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/).
