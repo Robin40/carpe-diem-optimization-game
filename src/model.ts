@@ -23,7 +23,7 @@ export function generateDeck(): Card[] {
     return cards;
 }
 
-type State = {
+export type State = {
     day: number;
     victoryPoints: number;
     energy: number;
