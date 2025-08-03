@@ -175,10 +175,12 @@ function addCounter(scene: Phaser.Scene, x: number, y: number, label: string, ge
     return {
         update(previewValue?: number) {
             let contents = withoutPreview();
-            if (previewValue !== undefined && previewValue !== getter()) {
+            const currentValue = getter();
+            if (previewValue !== undefined && previewValue !== currentValue) {
                 contents += ` → ${previewValue}`;
             }
             text.setText(contents);
+            text.setColor((previewValue ?? currentValue) < 0 ? "#FF0000" : "#FFFFFF");
         },
     };
 }
