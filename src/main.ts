@@ -1,13 +1,8 @@
 import Phaser from "phaser";
 import {
-    beginNextDay,
     type Card,
-    doFreelance,
-    doRecuperate,
-    endDay,
     generateDeck,
-    newGameState,
-    useCard
+    newGameState, perform,
 } from "./model.ts";
 
 const gameWidth = window.innerWidth;
@@ -62,9 +57,9 @@ new Phaser.Game({
 
                 if (state.actionPoints === 0 && !state.gameEnded) {
                     setTimeout(() => {
-                        endDay(state);
+                        perform({ type: "EndDay" }, state);
                         if (!state.gameEnded) {
-                            beginNextDay(state);
+                            perform({ type: "BeginNextDay" }, state);
                         }
                         updateUI();
                     }, 500);
@@ -79,15 +74,15 @@ new Phaser.Game({
                     gameHeight / 2,
                     getCardKey(card),
                 ).setInteractive().on(Phaser.Input.Events.POINTER_DOWN, ()=> {
-                    const result = useCard(card, i, state);
-                    switch (result.type) {
+                    const event = perform({ type: "UseCard", index: i }, state);
+                    switch (event.type) {
                         case "UseCard":
                             updateUI();
                             break;
                         case "CardAlreadyUsed":
                             break;
                         case "NotEnoughResources":
-                            alert(JSON.stringify(result, null, 4));
+                            alert(JSON.stringify(event, null, 4));
                             break;
                     }
                 });
@@ -95,14 +90,12 @@ new Phaser.Game({
             }
 
             const freelanceButton = addButton(this, gameWidth / 2, gameHeight * 0.75, "Freelance", () => {
-                if (doFreelance(state)) {
-                    updateUI();
-                }
+                perform({ type: "Freelance" }, state);
+                updateUI();
             });
             const recuperateButton = addButton(this, gameWidth / 2, gameHeight * 0.75 + (fontSize * lineHeight + buttonPadding.y * 2), "Recuperate", () => {
-                if (doRecuperate(state)) {
-                    updateUI();
-                }
+                perform({ type: "Recuperate" }, state);
+                updateUI();
             });
         },
         update() {},
