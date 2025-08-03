@@ -85,7 +85,7 @@ export type Action =
     | { type: "EndDay" }
     | { type: "BeginNextDay" };
 
-type Resources = {
+export type Resources = {
     actionPoints: number;
     energy: number;
     money: number;

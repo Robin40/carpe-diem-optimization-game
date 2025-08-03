@@ -3,7 +3,7 @@ import {
     type Action, apply,
     type Card, type CarpeDiemEvent,
     generateDeck, getDelta, getLacks,
-    newGameState,
+    newGameState, type Resources,
 } from "./model.ts";
 
 const gameWidth = window.innerWidth;
@@ -11,7 +11,7 @@ const gameHeight = window.innerHeight;
 const cardHeight = gameHeight / 3;
 const cardWidth = cardHeight / Math.sqrt(2);
 const gapX = gameWidth / 80;
-const fontSize = gameHeight / 12;
+const fontSize = gameHeight * 0.07;
 const buttonPadding = {
     x: fontSize,
     y: fontSize * 0.1,
@@ -41,6 +41,7 @@ new Phaser.Game({
         create() {
             let [state, event] = newGameState();
             receive(event);
+            setTimeout(() => updateUI(), 200);
 
             function send(action: Action) {
                 const event = apply(action, state);
@@ -77,29 +78,62 @@ new Phaser.Game({
                     image.setTexture(getCardKey(state.dayCards[index]));
                     image.setTint(state.used[index] || lacks ? disabledCardTint : 0xFFFFFF);
                 });
+                cardHints.forEach((hint, index) => {
+                    const delta = getDelta(index, state);
+                    const emoji = {
+                        actionPoints: "⏳",
+                        energy: "⚡",
+                        money: "💰",
+                        victoryPoints: "🏆",
+                    }
+                    hint.setText(
+                        (Object.entries(delta) as [keyof Resources, number][])
+                            .filter(([resource, value]) => !(resource === "victoryPoints" && value === 0))
+                            .map(([resource, value]) =>
+                                resource === "actionPoints"
+                                    ? emoji[resource].repeat(-value)
+                                    : `${emoji[resource]} ${value}`)
+                            .join("\n")
+                    ).setAlpha(state.used[index] ? 0.5 : 1);
+                });
                 freelanceButton.setEnabled(state.actionPoints >= 1);
                 recuperateButton.setEnabled(state.actionPoints >= 1);
             }
 
             const cardImages: Phaser.GameObjects.Image[] = [];
+            const cardHints: Phaser.GameObjects.Text[] = [];
             for (let i = 0; i < state.dayCards.length; i++) {
                 const card = state.dayCards[i];
                 const cardImage = this.add.image(
                     gameWidth / 2 + (i - (state.dayCards.length - 1) / 2) * (cardWidth + gapX),
-                    gameHeight / 2,
+                    gameHeight * 0.45,
                     getCardKey(card),
                 ).setInteractive().on(Phaser.Input.Events.POINTER_DOWN, ()=> {
                     send({ type: "UseCard", index: i });
                 });
                 cardImages.push(cardImage);
+
+                cardHints.push(
+                    this.add.text(cardImage.x, cardImage.y + cardHeight / 2, "",
+                        { ...textStyle, fontSize: fontSize * 0.5 }
+                    ).setOrigin(0.5, 0)
+                );
             }
 
-            const freelanceButton = addButton(this, gameWidth / 2, gameHeight * 0.75, "Freelance", () => {
-                send({ type: "Freelance" });
-            });
-            const recuperateButton = addButton(this, gameWidth / 2, gameHeight * 0.75 + (fontSize * lineHeight + buttonPadding.y * 2), "Recuperate", () => {
-                send({ type: "Recuperate" });
-            });
+            const recuperateButton = addButton(
+                this,
+                gameWidth * 0.25,
+                gameHeight * 0.85,
+                "Recuperate",
+                () => send({ type: "Recuperate" }),
+            );
+            const freelanceButton = addButton(
+                this,
+                gameWidth * 0.75,
+                gameHeight * 0.85,
+                "Freelance",
+                () => send({ type: "Freelance" })
+            );
         },
         update() {},
     }
