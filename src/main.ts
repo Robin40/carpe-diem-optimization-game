@@ -192,6 +192,7 @@ function addCounter(scene: Phaser.Scene, x: number, y: number, label: string,
 
 function addButton(scene: Phaser.Scene, x: number, y: number, label: string,
                    onClick: () => void, onPointerOver: () => void, onPointerOut: () => void) {
+    let _enabled: boolean = true;
     const style: Phaser.Types.GameObjects.Text.TextStyle = {
         ...textStyle,
         backgroundColor: buttonBgColor,
@@ -201,18 +202,23 @@ function addButton(scene: Phaser.Scene, x: number, y: number, label: string,
         .setInteractive()
         .on(Phaser.Input.Events.POINTER_DOWN, onClick)
         .on(Phaser.Input.Events.POINTER_OVER, () => {
-            text.setTint(hoveredButtonTint);
-            scene.input.setDefaultCursor("pointer");
-            onPointerOver();
+            if (_enabled) {
+                text.setTint(hoveredButtonTint);
+                scene.input.setDefaultCursor("pointer");
+                onPointerOver();
+            }
         })
         .on(Phaser.Input.Events.POINTER_OUT, () => {
-            text.setTint(0xFFFFFF);
+            if (_enabled) {
+                text.setTint(0xFFFFFF);
+            }
             scene.input.setDefaultCursor("default");
             onPointerOut();
         })
         .setOrigin(0.5, 0);
     return {
         setEnabled(enabled: boolean) {
+            _enabled = enabled;
             text.setTint(enabled ? 0xFFFFFF : disabledButtonTint);
         }
     };
