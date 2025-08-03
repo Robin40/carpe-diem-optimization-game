@@ -73,12 +73,15 @@ new Phaser.Game({
                 }
             }
 
-            let _previewedDelta: Resources | undefined = undefined;
+            type Preview = { delta: Resources; cardIndex?: number };
+            let _preview: Preview | undefined = undefined;
             const getPreview = (resource: keyof Resources): number | undefined => {
-                return _previewedDelta && state[resource] + _previewedDelta[resource];
+                if (!_preview) return undefined;
+                if (_preview.cardIndex !== undefined && state.used[_preview.cardIndex]) return undefined;
+                return state[resource] + _preview.delta[resource];
             };
-            const setPreview = (delta: Resources | undefined): void => {
-                _previewedDelta = delta;
+            const setPreview = (preview: Preview | undefined): void => {
+                _preview = preview;
                 Object.values(counters).forEach(counter => counter.update());
             };
 
@@ -130,7 +133,7 @@ new Phaser.Game({
                     cardImage.setTint(getCardTint(i, true));
                     this.input.setDefaultCursor("pointer");
                     if (!state.used[i]) {
-                        setPreview(getDelta(i, state));
+                        setPreview({ delta: getDelta(i, state), cardIndex: i });
                     }
                 }).on(Phaser.Input.Events.POINTER_OUT, () => {
                     cardImage.setTint(getCardTint(i, false));
@@ -152,7 +155,7 @@ new Phaser.Game({
                 gameHeight * 0.85,
                 `${emoji.energy} Recuperate`,
                 () => send({ type: "Recuperate" }),
-                () => setPreview({ actionPoints: -1, energy: 1, money: 0, victoryPoints: 0 }),
+                () => setPreview({ delta: { actionPoints: -1, energy: 1, money: 0, victoryPoints: 0 } }),
                 () => setPreview(undefined),
             );
             const freelanceButton = addButton(
@@ -161,7 +164,7 @@ new Phaser.Game({
                 gameHeight * 0.85,
                 `${emoji.money} Freelance`,
                 () => send({ type: "Freelance" }),
-                () => setPreview({ actionPoints: -1, money: 1, energy: 0, victoryPoints: 0 }),
+                () => setPreview({ delta: { actionPoints: -1, money: 1, energy: 0, victoryPoints: 0 } }),
                 () => setPreview(undefined),
             );
         },
