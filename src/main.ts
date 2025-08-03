@@ -6,17 +6,27 @@ import {
     newGameState, type Resources, type State,
 } from "./model.ts";
 
+type Dimensions = {
+    gameWidth: number;
+    gameHeight: number;
+    cardWidth: number;
+    cardHeight: number;
+    gapX: number;
+    defaultFontSize: number;
+    hintFontSize: number;
+};
+
 // Configuration
 const CONFIG = {
-    dimensions: {
-        gameWidth: window.innerWidth,
-        gameHeight: window.innerHeight,
+    dimensions: (gameWidth: number, gameHeight: number): Dimensions => ({
+        gameWidth,
+        gameHeight,
         get cardHeight() { return this.gameHeight / 3; },
         get cardWidth() { return this.cardHeight / Math.sqrt(2); },
         get gapX() { return this.gameWidth / 80; },
         get defaultFontSize() { return this.gameHeight * 0.062; },
         get hintFontSize() { return this.gameHeight * 0.035; },
-    },
+    }),
     colors: {
         gameBg: "#192a56",
         buttonBg: "#1751e6",
@@ -37,7 +47,6 @@ const CONFIG = {
     },
     text: {
         fontFamily: "serif",
-        get fontSize() { return CONFIG.dimensions.defaultFontSize; },
         lineHeight: 1.2,
     },
     timing: {
@@ -46,7 +55,7 @@ const CONFIG = {
     }
 };
 
-type SceneOptionalMethods = {
+interface SceneOptionalMethods {
     init?: Phaser.Types.Scenes.SceneInitCallback;
     preload?: Phaser.Types.Scenes.ScenePreloadCallback;
     create?: Phaser.Types.Scenes.SceneCreateCallback;
@@ -56,6 +65,7 @@ type SceneOptionalMethods = {
 class GameScene extends Phaser.Scene implements SceneOptionalMethods {
     private readonly state: State;
     private preview?: { delta: Resources; cardIndex?: number };
+    private views: View[] = [];
 
     // UI Components
     private counters: Record<string, Counter> = {};
@@ -70,11 +80,12 @@ class GameScene extends Phaser.Scene implements SceneOptionalMethods {
     }
 
     preload() {
+        const reference = CONFIG.dimensions(1900, 1080);
         for (const card of generateDeck()) {
             const key = getCardKey(card);
             this.load.svg(key, `cards/${key}.svg`, {
-                width: CONFIG.dimensions.cardWidth,
-                height: CONFIG.dimensions.cardHeight
+                width: reference.cardWidth,
+                height: reference.cardHeight,
             });
         }
     }
@@ -84,25 +95,47 @@ class GameScene extends Phaser.Scene implements SceneOptionalMethods {
 
         // Initial update after a short delay
         this.time.delayedCall(CONFIG.timing.initialDelay, () => this.updateUI());
+
+        this.scale.on('resize', this.resize, this);
+        document.body.style.backgroundColor = CONFIG.colors.gameBg;
+    }
+
+    private resize() {
+        this.positionElements();
     }
 
     private createUI() {
-        const { dimensions, emoji } = CONFIG;
+        const { emoji } = CONFIG;
 
         // Create counters
         this.counters = {
-            day: new Counter(this, dimensions.gapX, 0, "Day",
+            day: new Counter(this,
+                dims => dims.gapX,
+                () => 0,
+                "Day",
                 () => this.state.day),
-            victoryPoints: new Counter(this, dimensions.gameWidth / 2, 0, "Victory Points",
+            victoryPoints: new Counter(this,
+                dims => dims.gameWidth / 2,
+                () => 0,
+                "Victory Points",
                 () => this.state.victoryPoints,
                 () => this.getPreviewValue("victoryPoints")),
-            energy: new Counter(this, dimensions.gapX, dimensions.defaultFontSize * CONFIG.text.lineHeight, "Energy",
+            energy: new Counter(this,
+                dims => dims.gapX,
+                dims => dims.defaultFontSize * CONFIG.text.lineHeight,
+                "Energy",
                 () => this.state.energy,
                 () => this.getPreviewValue("energy")),
-            money: new Counter(this, dimensions.gameWidth / 2, dimensions.defaultFontSize * CONFIG.text.lineHeight, "Money",
+            money: new Counter(this,
+                dims => dims.gameWidth / 2,
+                dims => dims.defaultFontSize * CONFIG.text.lineHeight,
+                "Money",
                 () => this.state.money,
                 () => this.getPreviewValue("money")),
-            actionPoints: new Counter(this, dimensions.gapX, dimensions.defaultFontSize * CONFIG.text.lineHeight * 2, "Time",
+            actionPoints: new Counter(this,
+                dims => dims.gapX,
+                dims => dims.defaultFontSize * CONFIG.text.lineHeight * 2,
+                "Time",
                 () => this.state.actionPoints,
                 () => this.getPreviewValue("actionPoints")),
         };
@@ -113,8 +146,8 @@ class GameScene extends Phaser.Scene implements SceneOptionalMethods {
         // Create action buttons
         this.recuperateButton = new Button(
             this,
-            dimensions.gameWidth * 0.25,
-            dimensions.gameHeight * 0.85,
+            dims => dims.gameWidth * 0.25,
+            dims => dims.gameHeight * 0.85,
             `${emoji.energy} Recuperate`,
             () => this.sendAction({ type: "Recuperate" }),
             () => this.setPreview({ delta: { actionPoints: -1, energy: 1, money: 0, victoryPoints: 0 } }),
@@ -123,23 +156,34 @@ class GameScene extends Phaser.Scene implements SceneOptionalMethods {
 
         this.freelanceButton = new Button(
             this,
-            dimensions.gameWidth * 0.75,
-            dimensions.gameHeight * 0.85,
+            dims => dims.gameWidth * 0.75,
+            dims => dims.gameHeight * 0.85,
             `${emoji.money} Freelance`,
             () => this.sendAction({ type: "Freelance" }),
             () => this.setPreview({ delta: { actionPoints: -1, money: 1, energy: 0, victoryPoints: 0 } }),
             () => this.setPreview(undefined)
         );
+
+        // Position everything initially
+        this.views = [
+            ...Object.values(this.counters),
+            ...this.cardViews,
+            this.recuperateButton,
+            this.freelanceButton,
+        ];
+        this.positionElements();
+    }
+
+    private positionElements(): void {
+        const dims = CONFIG.dimensions(this.scale.width, this.scale.height);
+        this.views.forEach(view => view.updatePosition(dims));
     }
 
     private createCards() {
-        const { dimensions } = CONFIG;
-
         for (let i = 0; i < this.state.dayCards.length; i++) {
-            const x = dimensions.gameWidth / 2 + (i - (this.state.dayCards.length - 1) / 2) * (dimensions.cardWidth + dimensions.gapX);
-            const y = dimensions.gameHeight * 0.45;
-
-            const cardView = new CardView(this, x, y,
+            const cardView = new CardView(this,
+                dims => dims.gameWidth / 2 + (i - (this.state.dayCards.length - 1) / 2) * (dims.cardWidth + dims.gapX),
+                dims => dims.gameHeight * 0.45,
                 () => this.state.dayCards[i],
                 () => this.sendAction({ type: "UseCard", index: i }),
                 () => this.handleCardHover(i, true),
@@ -224,25 +268,34 @@ class GameScene extends Phaser.Scene implements SceneOptionalMethods {
     }
 }
 
+interface View {
+    updatePosition(dims: Dimensions): void;
+}
+
 // UI Component Classes
-class Counter {
+class Counter implements View {
     private text: Phaser.GameObjects.Text;
 
     constructor(
         scene: Phaser.Scene,
-        x: number,
-        y: number,
+        private getX: (dims: Dimensions) => number,
+        private getY: (dims: Dimensions) => number,
         private label: string,
         private getCurrent: () => number,
         private getPreview?: () => number | undefined
     ) {
-        this.text = scene.add.text(x, y, this.getDisplayText(), {
+        this.text = scene.add.text(0, 0, this.getDisplayText(), {
             fontFamily: CONFIG.text.fontFamily,
-            fontSize: CONFIG.text.fontSize,
         });
     }
 
-    update() {
+    updatePosition(dims: Dimensions): void {
+        this.text.setX(this.getX(dims));
+        this.text.setY(this.getY(dims));
+        this.text.setFontSize(dims.defaultFontSize);
+    }
+
+    update(): void {
         this.text.setText(this.getDisplayText());
         const value = this.getPreview?.() ?? this.getCurrent();
         this.text.setColor(value < 0 ? CONFIG.colors.danger : CONFIG.colors.normal);
@@ -261,30 +314,38 @@ class Counter {
     }
 }
 
-class CardView {
+class CardView implements View {
     private image: Phaser.GameObjects.Image;
     private hint: Phaser.GameObjects.Text;
 
     constructor(
         scene: Phaser.Scene,
-        x: number,
-        y: number,
+        private getX: (dims: Dimensions) => number,
+        private getY: (dims: Dimensions) => number,
         private getCard: () => Card,
         onClick: () => void,
         onPointerOver: () => void,
         onPointerOut: () => void,
         private getTint: () => number
     ) {
-        this.image = scene.add.image(x, y, getCardKey(this.getCard()))
+        this.image = scene.add.image(0, 0, getCardKey(this.getCard()))
             .setInteractive()
             .on(Phaser.Input.Events.POINTER_DOWN, onClick)
             .on(Phaser.Input.Events.POINTER_OVER, onPointerOver)
             .on(Phaser.Input.Events.POINTER_OUT, onPointerOut);
 
-        this.hint = scene.add.text(x, y + CONFIG.dimensions.cardHeight / 2, "", {
+        this.hint = scene.add.text(0, 0, "", {
             fontFamily: CONFIG.text.fontFamily,
-            fontSize: CONFIG.dimensions.hintFontSize,
         }).setOrigin(0.5, 0);
+    }
+
+    updatePosition(dims: Dimensions): void {
+        this.image.setX(this.getX(dims));
+        this.image.setY(this.getY(dims));
+        this.image.setDisplaySize(dims.cardWidth, dims.cardHeight);
+        this.hint.setX(this.getX(dims));
+        this.hint.setY(this.getY(dims) + dims.cardHeight / 2);
+        this.hint.setFontSize(dims.hintFontSize);
     }
 
     update(isUsed: boolean, delta: Resources) {
@@ -310,13 +371,13 @@ class CardView {
     }
 }
 
-class Button {
+class Button implements View {
     private text: Phaser.GameObjects.Text;
 
     constructor(
         scene: Phaser.Scene,
-        x: number,
-        y: number,
+        private getX: (dims: Dimensions) => number,
+        private getY: (dims: Dimensions) => number,
         label: string,
         onClick: () => void,
         onPointerOver: () => void,
@@ -324,15 +385,10 @@ class Button {
     ) {
         const style: Phaser.Types.GameObjects.Text.TextStyle = {
             fontFamily: CONFIG.text.fontFamily,
-            fontSize: CONFIG.text.fontSize,
             backgroundColor: CONFIG.colors.buttonBg,
-            padding: {
-                x: CONFIG.dimensions.defaultFontSize,
-                y: CONFIG.dimensions.defaultFontSize * 0.1,
-            },
         };
 
-        this.text = scene.add.text(x, y, label, style)
+        this.text = scene.add.text(0, 0, label, style)
             .setInteractive()
             .on(Phaser.Input.Events.POINTER_DOWN, onClick)
             .on(Phaser.Input.Events.POINTER_OVER, () => {
@@ -348,6 +404,13 @@ class Button {
             .setOrigin(0.5, 0);
     }
 
+    updatePosition(dims: Dimensions): void {
+        this.text.setX(this.getX(dims));
+        this.text.setY(this.getY(dims));
+        this.text.setFontSize(dims.defaultFontSize);
+        this.text.setPadding(dims.defaultFontSize, dims.defaultFontSize * 0.1);
+    }
+
     setEnabled(enabled: boolean) {
         this.text.setTint(enabled ? CONFIG.colors.default : CONFIG.colors.disabledButton);
     }
@@ -360,8 +423,13 @@ function getCardKey(card: Card): string {
 // Initialize game
 new Phaser.Game({
     type: Phaser.AUTO,
-    width: CONFIG.dimensions.gameWidth,
-    height: CONFIG.dimensions.gameHeight,
+    scale: {
+        mode: Phaser.Scale.RESIZE,
+        parent: document.body,
+        width: "100%",
+        height: "100%",
+        autoCenter: Phaser.Scale.CENTER_BOTH,
+    },
     backgroundColor: CONFIG.colors.gameBg,
     scene: GameScene,
 });
